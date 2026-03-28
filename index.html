@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Clay Counter</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --bg: #f5f3ef;
@@ -26,7 +27,7 @@
   --radius-lg: 14px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; font-size: 14px; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; font-size: 14px; overflow-x: hidden; }
 
 /* ── SPLASH ── */
 #splash {
@@ -49,6 +50,78 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monosp
 #splash-btn:hover { background: #bf5216; }
 #splash-skip { position: absolute; bottom: 20px; width: 100%; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: rgba(255,255,255,0.15); text-transform: uppercase; pointer-events: none; transition: opacity 0.4s; }
 #splash-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, #fff8e0 0%, #d96020 40%, #0f0e0c 100%); opacity: 0; pointer-events: none; z-index: 3; }
+
+/* ── LOBBY ── */
+#lobby {
+  display: none; max-width: 420px; margin: 0 auto; padding: 60px 24px;
+  min-height: 100vh;
+  flex-direction: column; align-items: center; justify-content: center;
+}
+#lobby.active { display: flex; }
+
+.lobby-logo { text-align: center; margin-bottom: 48px; }
+.lobby-logo h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 0.05em; line-height: 1; }
+.lobby-logo h1 span { color: var(--orange); }
+.lobby-logo p { font-size: 0.6rem; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-top: 4px; }
+
+.lobby-card {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 28px 24px; margin-bottom: 16px;
+}
+.lobby-card h2 {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.08em;
+  margin-bottom: 6px; line-height: 1;
+}
+.lobby-card p { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.06em; margin-bottom: 18px; line-height: 1.6; }
+
+.lobby-btn {
+  width: 100%; background: var(--text); border: none; border-radius: var(--radius);
+  color: var(--bg); font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  letter-spacing: 0.12em; text-transform: uppercase; padding: 14px;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.lobby-btn:hover { opacity: 0.8; }
+.lobby-btn.orange { background: var(--orange); color: #fff; }
+
+.code-input-wrap { display: flex; gap: 8px; margin-bottom: 16px; }
+.code-input-wrap input {
+  flex: 1; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius); font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem; letter-spacing: 0.3em; text-align: center;
+  padding: 12px; color: var(--text); text-transform: uppercase; outline: none;
+  transition: border-color 0.18s;
+}
+.code-input-wrap input:focus { border-color: var(--orange); }
+.code-input-wrap input::placeholder { color: var(--text-dim); font-size: 1rem; letter-spacing: 0.15em; }
+
+.lobby-divider {
+  display: flex; align-items: center; gap: 14px; width: 100%; margin: 8px 0;
+  font-size: 0.58rem; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase;
+}
+.lobby-divider::before, .lobby-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.lobby-error { color: var(--miss); font-size: 0.68rem; letter-spacing: 0.06em; margin-top: 10px; text-align: center; min-height: 1.2em; }
+
+/* ── SESSION BANNER ── */
+.session-banner {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+}
+.session-code-display {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.2em;
+  color: var(--orange); background: var(--orange-light); padding: 4px 12px;
+  border-radius: 6px; line-height: 1;
+}
+.session-info { flex: 1; font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.06em; line-height: 1.6; }
+.session-info strong { color: var(--text-mid); font-weight: 500; }
+.online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hit); animation: pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+.btn-share {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-mid); font-family: 'DM Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.08em; padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-share:hover { border-color: var(--orange); color: var(--orange); }
 
 /* ── APP ── */
 #app { display: none; max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
@@ -75,18 +148,6 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
 .btn-add { background: var(--text); border: none; border-radius: var(--radius); color: var(--bg); font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 18px; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
 .btn-add:hover { opacity: 0.75; }
 
-/* ── VOICE BANNER ── */
-#voice-banner {
-  display: none; align-items: center; gap: 10px;
-  background: var(--mic-active-bg); border: 1px solid #c2daf0;
-  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px;
-}
-#voice-banner.visible { display: flex; }
-.vb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mic-active); animation: pulse 1s ease-in-out infinite; flex-shrink: 0; }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
-.vb-text { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--mic-active); flex: 1; }
-.vb-last { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.06em; }
-
 /* ── CARDS ── */
 #shooters { display: flex; flex-direction: column; gap: 12px; }
 .shooter-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; animation: cardIn 0.22s ease; }
@@ -100,6 +161,9 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
 .tot-hit  { background: var(--hit-bg);  color: var(--hit); }
 .tot-miss { background: var(--miss-bg); color: var(--miss); }
 .tot-pct  { background: var(--orange-light); color: var(--orange); }
+
+.btn-del { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.btn-del:hover { border-color: var(--miss); color: var(--miss); }
 
 /* mic button */
 .btn-mic {
@@ -117,8 +181,22 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
 }
 @keyframes micPulse { 0%,100%{box-shadow:0 0 0 4px rgba(45,111,168,0.18)} 50%{box-shadow:0 0 0 8px rgba(45,111,168,0.08)} }
 
-.btn-del { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
-.btn-del:hover { border-color: var(--miss); color: var(--miss); }
+/* voice banner */
+#voice-banner {
+  display: none; align-items: center; gap: 10px;
+  background: var(--mic-active-bg); border: 1px solid #c2daf0;
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px;
+}
+#voice-banner.visible { display: flex; }
+.vb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mic-active); animation: pulse 1s ease-in-out infinite; flex-shrink: 0; }
+.vb-text { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--mic-active); flex: 1; }
+.vb-last { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.06em; }
+
+/* flash feedback on voice */
+.btn-hit.flash-hit   { background: #b8dfc8; transition: background 0s; }
+.btn-miss.flash-miss { background: #f5c0c0; transition: background 0s; }
+
+#no-speech { display: none; background: #fdf8ec; border: 1px solid #e8d8a0; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 0.68rem; color: #7a6020; letter-spacing: 0.06em; }
 
 /* rounds */
 .card-body { padding: 12px 16px 14px; }
@@ -131,10 +209,6 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
 .btn-miss { background: var(--miss-bg); color: var(--miss); border-radius: 0 6px 6px 0; border: 1px solid #f5cece; border-left: none; }
 .btn-hit:active  { background: #d4eddf; transform: scale(0.96); }
 .btn-miss:active { background: #fad8d8; transform: scale(0.96); }
-
-/* flash feedback on voice */
-.btn-hit.flash-hit   { background: #b8dfc8; transition: background 0s; }
-.btn-miss.flash-miss { background: #f5c0c0; transition: background 0s; }
 
 .round-score { font-size: 0.72rem; color: var(--text-mid); min-width: 62px; text-align: right; letter-spacing: 0.04em; }
 .round-bar { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; margin: 0 0 2px; }
@@ -156,13 +230,22 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
 .lb-top .lb-pct { color: var(--orange); }
 .lb-clays { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.06em; margin-top: 1px; }
 
-.footer { margin-top: 40px; display: flex; justify-content: center; }
+.footer { margin-top: 40px; display: flex; justify-content: center; gap: 10px; }
 .btn-reset { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 20px; cursor: pointer; transition: all 0.15s; }
 .btn-reset:hover { color: var(--miss); border-color: var(--miss); }
 .empty { text-align: center; padding: 40px 0; color: var(--text-dim); font-size: 0.72rem; letter-spacing: 0.08em; }
 
-/* no speech support warning */
-#no-speech { display: none; background: #fdf8ec; border: 1px solid #e8d8a0; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 0.68rem; color: #7a6020; letter-spacing: 0.06em; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: var(--bg); font-family: 'DM Mono', monospace;
+  font-size: 0.7rem; letter-spacing: 0.08em; padding: 10px 20px;
+  border-radius: 100px; opacity: 0; transition: all 0.3s ease; z-index: 200;
+  pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -174,9 +257,35 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
   <div id="splash-ui">
     <div id="splash-title">CLAY <span>COUNTER</span></div>
     <div id="splash-sub">Trap Shooting Tracker</div>
-    <button id="splash-btn" onclick="enterApp()">Enter →</button>
+    <button id="splash-btn" onclick="enterLobby()">Enter →</button>
   </div>
   <div id="splash-skip">Tap anywhere to skip</div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div class="lobby-logo">
+    <h1>CLAY <span>COUNTER</span></h1>
+    <p>Trap Shooting Tracker</p>
+  </div>
+
+  <div class="lobby-card">
+    <h2>Join Session</h2>
+    <p>Enter the 4-letter code from your group's host</p>
+    <div class="code-input-wrap">
+      <input type="text" id="join-code" maxlength="4" placeholder="— — — —" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <button class="lobby-btn orange" onclick="joinSession()">Join →</button>
+    <div class="lobby-error" id="join-error"></div>
+  </div>
+
+  <div class="lobby-divider">or</div>
+
+  <div class="lobby-card">
+    <h2>Create Session</h2>
+    <p>Start a new session and share the code with your group</p>
+    <button class="lobby-btn" onclick="createSession()">Create New Session</button>
+  </div>
 </div>
 
 <!-- APP -->
@@ -192,9 +301,19 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
     </div>
   </header>
 
-  <div id="no-speech">⚠ Voice recognition not supported in this browser. Use Chrome or Safari on iOS 15+.</div>
+  <div class="session-banner" id="session-banner">
+    <div class="online-dot"></div>
+    <div class="session-info">
+      <strong>Live Session</strong><br>
+      Share this code with your group
+    </div>
+    <div class="session-code-display" id="session-code-display">----</div>
+    <button class="btn-share" onclick="shareSession()">Copy Link</button>
+  </div>
 
-  <div id="voice-banner" class="visible" style="display:none">
+  <div id="no-speech">⚠ Voice recognition is not supported in this browser. Use Chrome on desktop or Android for mic input.</div>
+
+  <div id="voice-banner">
     <div class="vb-dot"></div>
     <span class="vb-text">Listening — say "Hit" or "Miss"</span>
     <span class="vb-last" id="vb-last"></span>
@@ -213,19 +332,27 @@ header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bo
   <div class="section-head">Leaderboard</div>
   <div id="leaderboard"></div>
   <div class="footer">
+    <button class="btn-reset" onclick="leaveSession()">← Leave</button>
     <button class="btn-reset" onclick="resetSession()">↺ New Session</button>
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
-// ── STATE ──────────────────────────────────────────────────────────
-let state = { shooters: [], defaultClays: 25 };
-function load() {
-  try { state = JSON.parse(localStorage.getItem('cc_v2') || 'null') || { shooters: [], defaultClays: 25 }; }
-  catch { state = { shooters: [], defaultClays: 25 }; }
-}
-function save() { localStorage.setItem('cc_v2', JSON.stringify(state)); }
-function uid()  { return Math.random().toString(36).slice(2, 8); }
+// ── SUPABASE ────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://hzaosowxulbbbkhadszr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YW9zb3d4dWxiYmJraGFkc3pyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MTI5MjYsImV4cCI6MjA5MDI4ODkyNn0.LFEeCGAlTPWo_hoMnwPIWVtQuzBQjCiudRhv13lC9Lg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── STATE ───────────────────────────────────────────────────────────
+let sessionId = null;
+let sessionCode = null;
+let shooters = [];   // [{id, name, rounds: [{id, round_num, hits, misses, max}]}]
+let defaultClays = 25;
+let realtimeChannel = null;
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
 function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function pct(h, t) { return t ? Math.round(h / t * 100) + '%' : '—'; }
 function stats(s) {
@@ -234,14 +361,24 @@ function stats(s) {
   return { hits, total, misses: total - hits };
 }
 
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+
 // ── VOICE ──────────────────────────────────────────────────────────
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let activeShooterId = null;  // which shooter's mic is on
+let activeShooterId = null;
 let recognitionRunning = false;
 
 if (!SpeechRecognition) {
-  document.getElementById('no-speech').style.display = 'block';
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('no-speech');
+    if (el) el.style.display = 'block';
+  });
 }
 
 function initRecognition() {
@@ -264,7 +401,6 @@ function initRecognition() {
         .toLowerCase()
         .trim();
 
-      // Use final results OR confident interim
       if (!result.isFinal && result[0].confidence < 0.7) continue;
       if (transcript === lastProcessed || cooldown) continue;
 
@@ -294,7 +430,6 @@ function initRecognition() {
   };
 
   r.onend = () => {
-    // Auto-restart if we're supposed to still be listening
     if (recognitionRunning && activeShooterId) {
       try { r.start(); } catch(e) {}
     }
@@ -304,9 +439,10 @@ function initRecognition() {
 }
 
 function startListening(shooterId) {
-  if (!SpeechRecognition) return;
-
-  // Stop any current listener
+  if (!SpeechRecognition) {
+    toast('Voice not supported in this browser. Use Chrome on desktop or Android.');
+    return;
+  }
   if (activeShooterId && activeShooterId !== shooterId) stopListening();
 
   activeShooterId = shooterId;
@@ -315,7 +451,6 @@ function startListening(shooterId) {
   if (!recognition) recognition = initRecognition();
   try { recognition.start(); } catch(e) {}
 
-  // Update mic button states
   document.querySelectorAll('.btn-mic').forEach(b => {
     b.classList.toggle('listening', b.dataset.id === shooterId);
   });
@@ -328,7 +463,8 @@ function stopListening() {
   recognitionRunning = false;
   try { recognition && recognition.stop(); } catch(e) {}
   document.querySelectorAll('.btn-mic').forEach(b => b.classList.remove('listening'));
-  document.getElementById('voice-banner').style.display = 'none';
+  const vb = document.getElementById('voice-banner');
+  if (vb) vb.style.display = 'none';
 }
 
 function toggleMic(shooterId) {
@@ -346,31 +482,26 @@ function updateVoiceBanner(word) {
   setTimeout(() => { el.textContent = ''; }, 2000);
 }
 
-// ── VOICE ACTIONS ─────────────────────────────────────────────────
 function voiceHit(shooterId) {
-  const s = state.shooters.find(s => s.id === shooterId);
+  const s = shooters.find(s => s.id === shooterId);
   if (!s) return;
-  const r = s.rounds[s.rounds.length - 1]; // always hits current (last) round
+  const r = s.rounds[s.rounds.length - 1];
   if (r.hits + r.misses >= r.max) return;
   r.hits++;
-  save();
-  renderCard(s);
-  renderLeaderboard();
-  updateHeader();
+  renderCard(s); renderLeaderboard(); updateHeader();
   flashButton(shooterId, 'hit');
+  sb.from('rounds').update({ hits: r.hits }).eq('id', r.id);
 }
 
 function voiceMiss(shooterId) {
-  const s = state.shooters.find(s => s.id === shooterId);
+  const s = shooters.find(s => s.id === shooterId);
   if (!s) return;
   const r = s.rounds[s.rounds.length - 1];
   if (r.hits + r.misses >= r.max) return;
   r.misses++;
-  save();
-  renderCard(s);
-  renderLeaderboard();
-  updateHeader();
+  renderCard(s); renderLeaderboard(); updateHeader();
   flashButton(shooterId, 'miss');
+  sb.from('rounds').update({ misses: r.misses }).eq('id', r.id);
 }
 
 function flashButton(shooterId, type) {
@@ -387,58 +518,207 @@ function flashButton(shooterId, type) {
   setTimeout(() => btn.classList.remove(flashCls), 250);
 }
 
-// ── SHOOTER CRUD ──────────────────────────────────────────────────
-function addShooter() {
+// ── TOAST ────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── SESSION MANAGEMENT ──────────────────────────────────────────────
+async function createSession() {
+  const code = genCode();
+  const id = uid();
+  const { error } = await sb.from('sessions').insert({ id, code });
+  if (error) {
+    // Code collision — try again
+    if (error.code === '23505') return createSession();
+    document.getElementById('join-error').textContent = 'Failed to create session. Try again.';
+    console.error(error);
+    return;
+  }
+  sessionId = id;
+  sessionCode = code;
+  showApp();
+  subscribeRealtime();
+  toast('Session created!');
+}
+
+async function joinSession() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('join-error');
+  if (code.length !== 4) { errEl.textContent = 'Enter a 4-character code'; return; }
+
+  const { data, error } = await sb.from('sessions').select('id').eq('code', code).maybeSingle();
+  if (error || !data) { errEl.textContent = 'Session not found. Check the code.'; return; }
+
+  sessionId = data.id;
+  sessionCode = code;
+  errEl.textContent = '';
+  showApp();
+  await loadSessionData();
+  subscribeRealtime();
+  toast('Joined session!');
+}
+
+async function loadSessionData() {
+  const { data: shooterRows } = await sb.from('shooters')
+    .select('*').eq('session_id', sessionId).order('position');
+  if (!shooterRows) return;
+
+  shooters = [];
+  for (const s of shooterRows) {
+    const { data: roundRows } = await sb.from('rounds')
+      .select('*').eq('shooter_id', s.id).order('round_num');
+    shooters.push({ id: s.id, name: s.name, rounds: roundRows || [] });
+  }
+  render();
+}
+
+// ── REALTIME ────────────────────────────────────────────────────────
+function subscribeRealtime() {
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+
+  realtimeChannel = sb.channel('session-' + sessionId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shooters', filter: `session_id=eq.${sessionId}` }, payload => {
+      handleShooterChange(payload);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds' }, payload => {
+      handleRoundChange(payload);
+    })
+    .subscribe();
+}
+
+function handleShooterChange(payload) {
+  if (payload.eventType === 'INSERT') {
+    const s = payload.new;
+    if (!shooters.find(x => x.id === s.id)) {
+      shooters.push({ id: s.id, name: s.name, rounds: [] });
+      render();
+    }
+  } else if (payload.eventType === 'DELETE') {
+    shooters = shooters.filter(x => x.id !== payload.old.id);
+    render();
+  }
+}
+
+function handleRoundChange(payload) {
+  if (payload.eventType === 'INSERT') {
+    const r = payload.new;
+    const s = shooters.find(x => x.id === r.shooter_id);
+    if (s && !s.rounds.find(x => x.id === r.id)) {
+      s.rounds.push(r);
+      s.rounds.sort((a, b) => a.round_num - b.round_num);
+      renderCard(s); renderLeaderboard(); updateHeader();
+    }
+  } else if (payload.eventType === 'UPDATE') {
+    const r = payload.new;
+    const s = shooters.find(x => x.id === r.shooter_id);
+    if (s) {
+      const idx = s.rounds.findIndex(x => x.id === r.id);
+      if (idx >= 0) { s.rounds[idx] = r; renderCard(s); renderLeaderboard(); updateHeader(); }
+    }
+  } else if (payload.eventType === 'DELETE') {
+    for (const s of shooters) {
+      const idx = s.rounds.findIndex(x => x.id === payload.old.id);
+      if (idx >= 0) { s.rounds.splice(idx, 1); renderCard(s); renderLeaderboard(); updateHeader(); break; }
+    }
+  }
+}
+
+// ── SHOOTER CRUD (Supabase) ─────────────────────────────────────────
+async function addShooter() {
   const name = document.getElementById('name-input').value.trim();
   const clays = parseInt(document.getElementById('clays-num').value) || 25;
-  if (!name) return;
-  state.shooters.push({ id: uid(), name, rounds: [{ hits: 0, misses: 0, max: clays }] });
-  state.defaultClays = clays;
+  if (!name || !sessionId) return;
+
+  const shooterId = uid();
+  const roundId = uid();
+  defaultClays = clays;
+
+  // Optimistic local update
+  const newShooter = { id: shooterId, name, rounds: [{ id: roundId, shooter_id: shooterId, round_num: 1, hits: 0, misses: 0, max: clays }] };
+  shooters.push(newShooter);
   document.getElementById('name-input').value = '';
-  save(); render();
+  render();
+
+  // Push to Supabase
+  await sb.from('shooters').insert({ id: shooterId, session_id: sessionId, name, position: shooters.length - 1 });
+  await sb.from('rounds').insert({ id: roundId, shooter_id: shooterId, round_num: 1, hits: 0, misses: 0, max: clays });
 }
 
-function removeShooter(id) {
+async function removeShooter(id) {
   if (!confirm('Remove shooter?')) return;
   if (activeShooterId === id) stopListening();
-  state.shooters = state.shooters.filter(s => s.id !== id);
-  save(); render();
+  shooters = shooters.filter(s => s.id !== id);
+  render();
+  await sb.from('shooters').delete().eq('id', id);
 }
 
-function hit(id, ri) {
-  const s = state.shooters.find(s => s.id === id);
+async function hit(id, ri) {
+  const s = shooters.find(s => s.id === id);
   if (!s) return;
   const r = s.rounds[ri];
   if (r.hits + r.misses >= r.max) return;
   r.hits++;
-  save(); renderCard(s); renderLeaderboard(); updateHeader();
+  renderCard(s); renderLeaderboard(); updateHeader();
+  await sb.from('rounds').update({ hits: r.hits }).eq('id', r.id);
 }
 
-function miss(id, ri) {
-  const s = state.shooters.find(s => s.id === id);
+async function miss(id, ri) {
+  const s = shooters.find(s => s.id === id);
   if (!s) return;
   const r = s.rounds[ri];
   if (r.hits + r.misses >= r.max) return;
   r.misses++;
-  save(); renderCard(s); renderLeaderboard(); updateHeader();
+  renderCard(s); renderLeaderboard(); updateHeader();
+  await sb.from('rounds').update({ misses: r.misses }).eq('id', r.id);
 }
 
-function addRound(id) {
-  const s = state.shooters.find(s => s.id === id);
+async function addRound(id) {
+  const s = shooters.find(s => s.id === id);
   if (!s) return;
-  const clays = parseInt(document.getElementById('clays-num').value) || state.defaultClays || 25;
-  s.rounds.push({ hits: 0, misses: 0, max: clays });
-  save(); renderCard(s);
+  const clays = parseInt(document.getElementById('clays-num').value) || defaultClays || 25;
+  const roundId = uid();
+  const roundNum = s.rounds.length + 1;
+  const newRound = { id: roundId, shooter_id: id, round_num: roundNum, hits: 0, misses: 0, max: clays };
+  s.rounds.push(newRound);
+  renderCard(s);
+  await sb.from('rounds').insert(newRound);
 }
 
-function resetSession() {
+async function resetSession() {
   if (!confirm('Start a new session? All data will be cleared.')) return;
   stopListening();
-  state = { shooters: [], defaultClays: state.defaultClays };
-  save(); render();
+  await sb.from('shooters').delete().eq('session_id', sessionId);
+  shooters = [];
+  render();
+  toast('Session cleared');
 }
 
-// ── RENDER ─────────────────────────────────────────────────────────
+function leaveSession() {
+  stopListening();
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+  sessionId = null;
+  sessionCode = null;
+  shooters = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lobby').classList.add('active');
+}
+
+function shareSession() {
+  const url = window.location.origin + window.location.pathname + '?code=' + sessionCode;
+  if (navigator.share) {
+    navigator.share({ title: 'Clay Counter', text: 'Join my trap session! Code: ' + sessionCode, url });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => toast('Link copied!')).catch(() => toast('Code: ' + sessionCode));
+  } else {
+    toast('Code: ' + sessionCode);
+  }
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────
 function roundsHTML(s) {
   let h = '';
   s.rounds.forEach((r, i) => {
@@ -475,17 +755,15 @@ function renderCard(s) {
 
 function renderShooters() {
   const el = document.getElementById('shooters');
-  if (!state.shooters.length) {
+  if (!shooters.length) {
     el.innerHTML = '<div class="empty">Add a shooter to get started</div>';
     return;
   }
-  const speechAvail = !!SpeechRecognition;
-  el.innerHTML = state.shooters.map(s => {
+  const speechAvail = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  el.innerHTML = shooters.map(s => {
     const { hits, total, misses } = stats(s);
     const isListening = activeShooterId === s.id;
-    const micBtn = speechAvail
-      ? `<button class="btn-mic ${isListening ? 'listening' : ''}" data-id="${s.id}" onclick="toggleMic('${s.id}')" title="Voice recognition">🎙</button>`
-      : '';
+    const micBtn = `<button class="btn-mic ${isListening ? 'listening' : ''}" data-id="${s.id}" onclick="toggleMic('${s.id}')" title="Voice recognition">🎙</button>`;
     return `
       <div class="shooter-card" id="card-${s.id}">
         <div class="card-top">
@@ -505,8 +783,8 @@ function renderShooters() {
 
 function renderLeaderboard() {
   const el = document.getElementById('leaderboard');
-  if (!state.shooters.length) { el.innerHTML = '<div class="empty">No shooters yet</div>'; return; }
-  const ranked = state.shooters
+  if (!shooters.length) { el.innerHTML = '<div class="empty">No shooters yet</div>'; return; }
+  const ranked = shooters
     .map(s => ({ ...s, ...stats(s) }))
     .sort((a, b) => {
       const pa = a.total ? a.hits / a.total : -1;
@@ -526,29 +804,50 @@ function renderLeaderboard() {
 
 function updateHeader() {
   document.getElementById('hdr-shooters').textContent =
-    state.shooters.length + (state.shooters.length === 1 ? ' shooter' : ' shooters');
+    shooters.length + (shooters.length === 1 ? ' shooter' : ' shooters');
 }
 
 function render() { renderShooters(); renderLeaderboard(); updateHeader(); }
 
-document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') addShooter(); });
-document.getElementById('hdr-date').textContent =
-  new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+// ── NAVIGATION ──────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('lobby').classList.remove('active');
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('session-code-display').textContent = sessionCode;
+  document.getElementById('hdr-date').textContent =
+    new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  render();
+}
 
-// ── ENTER APP ─────────────────────────────────────────────────────
-function enterApp() {
+function enterLobby() {
   const sp = document.getElementById('splash');
   sp.style.transition = 'opacity 0.4s ease';
   sp.style.opacity = '0';
   setTimeout(() => {
     sp.style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    load(); render();
+    document.getElementById('lobby').classList.add('active');
   }, 420);
 }
-window.enterApp = enterApp;
+window.enterLobby = enterLobby;
 
-// ── SPLASH ANIMATION ──────────────────────────────────────────────
+document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') addShooter(); });
+document.getElementById('join-code').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+document.getElementById('join-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinSession(); });
+
+// ── AUTO-JOIN FROM URL ──────────────────────────────────────────────
+(function checkUrlCode() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code && code.length === 4) {
+    document.getElementById('join-code').value = code.toUpperCase();
+    // Auto-join after splash
+    window._autoJoinCode = code.toUpperCase();
+  }
+})();
+
+// ── SPLASH ANIMATION ────────────────────────────────────────────────
 (function() {
   const cvs     = document.getElementById('splash-canvas');
   const ctx     = cvs.getContext('2d');
@@ -556,7 +855,6 @@ window.enterApp = enterApp;
   const btn     = document.getElementById('splash-btn');
   const skipEl  = document.getElementById('splash-skip');
   const flashEl = document.getElementById('splash-flash');
-
   const splashEl = document.getElementById('splash');
 
   let done = false, exploded = false;
@@ -587,7 +885,7 @@ window.enterApp = enterApp;
     const g = ctx.createRadialGradient(-6, -4, 1, 0, 0, 22);
     g.addColorStop(0,'#ff9944'); g.addColorStop(0.5,'#d95f1a'); g.addColorStop(1,'#8b3a0a');
     ctx.fillStyle = g; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0, -2, 14, 5, 0, 0, Math.PI);
+    ctx.beginPath(); ctx.ellipse(0, -2, 14, 5, 0, Math.PI, Math.PI*2);
     ctx.strokeStyle = 'rgba(255,210,150,0.2)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.restore();
   }
@@ -705,8 +1003,15 @@ window.enterApp = enterApp;
     skipEl.style.opacity='0';
   }
 
-  document.getElementById('splash').addEventListener('click', e => { if (e.target!==btn) skipSplash(); });
-  sto(() => { initClay(); rAF(loop); }, 500);
+  // If URL has ?code=, skip splash entirely and auto-join
+  if (window._autoJoinCode) {
+    splashEl.style.display = 'none';
+    document.getElementById('lobby').classList.add('active');
+    setTimeout(() => joinSession(), 100);
+  } else {
+    splashEl.addEventListener('click', e => { if (e.target!==btn) skipSplash(); });
+    sto(() => { initClay(); rAF(loop); }, 500);
+  }
 })();
 </script>
 </body>

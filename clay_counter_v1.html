@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Clay Counter</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --border: #e2dfd9;
+  --border-strong: #c8c4bc;
+  --text: #1a1916;
+  --text-mid: #6b6760;
+  --text-dim: #b0aca5;
+  --orange: #d95f1a;
+  --orange-light: #fdf0e8;
+  --hit: #2d7a4f;
+  --hit-bg: #edf6f1;
+  --miss: #b83232;
+  --miss-bg: #fdf0f0;
+  --mic-active: #2d6fa8;
+  --mic-active-bg: #eaf2fb;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; font-size: 14px; }
+
+/* ── SPLASH ── */
+#splash {
+  position: fixed; inset: 0; background: #0f0e0c; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden;
+}
+#splash-canvas { position: absolute; inset: 0; pointer-events: none; }
+#splash-ui { position: relative; z-index: 2; text-align: center; opacity: 0; pointer-events: none; }
+#splash-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3.5rem,12vw,6rem); letter-spacing: 0.06em; line-height: 1; color: #f5f3ef; }
+#splash-title span { color: #d95f1a; }
+#splash-sub { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.22em; color: #6b6760; text-transform: uppercase; margin-top: 8px; }
+#splash-btn {
+  margin-top: 28px; background: #d95f1a; border: none; border-radius: 6px;
+  color: #fff; font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 32px;
+  cursor: pointer; opacity: 0; transform: translateY(8px);
+  transition: background 0.15s; pointer-events: all; display: inline-block;
+}
+#splash-btn:hover { background: #bf5216; }
+#splash-skip { position: absolute; bottom: 20px; width: 100%; text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: rgba(255,255,255,0.15); text-transform: uppercase; pointer-events: none; transition: opacity 0.4s; }
+#splash-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, #fff8e0 0%, #d96020 40%, #0f0e0c 100%); opacity: 0; pointer-events: none; z-index: 3; }
+
+/* ── APP ── */
+#app { display: none; max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
+
+header { padding: 32px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 24px; display: flex; align-items: flex-end; justify-content: space-between; }
+.logo h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; letter-spacing: 0.05em; line-height: 1; }
+.logo h1 span { color: var(--orange); }
+.logo p { font-size: 0.6rem; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-top: 3px; }
+.header-meta { text-align: right; font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.08em; line-height: 1.7; }
+.header-meta strong { color: var(--text-mid); font-weight: 500; display: block; }
+
+.setup-bar { display: flex; gap: 10px; margin-bottom: 24px; align-items: stretch; }
+.setup-bar input[type="text"] {
+  flex: 1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-family: 'DM Mono', monospace;
+  font-size: 0.82rem; padding: 11px 14px; outline: none; transition: border-color 0.18s;
+}
+.setup-bar input[type="text"]::placeholder { color: var(--text-dim); }
+.setup-bar input[type="text"]:focus { border-color: var(--orange); }
+.clays-input { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.clays-input label { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; padding: 0 10px; white-space: nowrap; border-right: 1px solid var(--border); height: 100%; display: flex; align-items: center; }
+.clays-input input[type="number"] { width: 52px; border: none; background: transparent; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 500; padding: 11px 10px; outline: none; text-align: center; -moz-appearance: textfield; }
+.clays-input input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.btn-add { background: var(--text); border: none; border-radius: var(--radius); color: var(--bg); font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 18px; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
+.btn-add:hover { opacity: 0.75; }
+
+/* ── VOICE BANNER ── */
+#voice-banner {
+  display: none; align-items: center; gap: 10px;
+  background: var(--mic-active-bg); border: 1px solid #c2daf0;
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px;
+}
+#voice-banner.visible { display: flex; }
+.vb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mic-active); animation: pulse 1s ease-in-out infinite; flex-shrink: 0; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+.vb-text { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--mic-active); flex: 1; }
+.vb-last { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.06em; }
+
+/* ── CARDS ── */
+#shooters { display: flex; flex-direction: column; gap: 12px; }
+.shooter-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; animation: cardIn 0.22s ease; }
+@keyframes cardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+.card-top { display: flex; align-items: center; padding: 14px 16px 12px; gap: 10px; border-bottom: 1px solid var(--border); }
+.shooter-name { font-family: 'Instrument Serif', serif; font-size: 1.3rem; flex: 1; letter-spacing: 0.01em; }
+
+.totals { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.tot { font-size: 0.6rem; letter-spacing: 0.07em; padding: 3px 8px; border-radius: 100px; text-transform: uppercase; }
+.tot-hit  { background: var(--hit-bg);  color: var(--hit); }
+.tot-miss { background: var(--miss-bg); color: var(--miss); }
+.tot-pct  { background: var(--orange-light); color: var(--orange); }
+
+/* mic button */
+.btn-mic {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface); color: var(--text-dim);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0; transition: all 0.18s; position: relative;
+}
+.btn-mic:hover { border-color: var(--mic-active); color: var(--mic-active); }
+.btn-mic.listening {
+  background: var(--mic-active); border-color: var(--mic-active);
+  color: #fff; box-shadow: 0 0 0 4px rgba(45,111,168,0.18);
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse { 0%,100%{box-shadow:0 0 0 4px rgba(45,111,168,0.18)} 50%{box-shadow:0 0 0 8px rgba(45,111,168,0.08)} }
+
+.btn-del { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+.btn-del:hover { border-color: var(--miss); color: var(--miss); }
+
+/* rounds */
+.card-body { padding: 12px 16px 14px; }
+.round { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.round + .round { border-top: 1px solid var(--border); }
+.round-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); width: 44px; flex-shrink: 0; }
+.tally { display: flex; align-items: center; gap: 1px; flex: 1; }
+.btn-hit, .btn-miss { height: 42px; border: none; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.06em; transition: all 0.1s; flex: 1; }
+.btn-hit  { background: var(--hit-bg);  color: var(--hit);  border-radius: 6px 0 0 6px; border: 1px solid #c8e8d6; }
+.btn-miss { background: var(--miss-bg); color: var(--miss); border-radius: 0 6px 6px 0; border: 1px solid #f5cece; border-left: none; }
+.btn-hit:active  { background: #d4eddf; transform: scale(0.96); }
+.btn-miss:active { background: #fad8d8; transform: scale(0.96); }
+
+/* flash feedback on voice */
+.btn-hit.flash-hit   { background: #b8dfc8; transition: background 0s; }
+.btn-miss.flash-miss { background: #f5c0c0; transition: background 0s; }
+
+.round-score { font-size: 0.72rem; color: var(--text-mid); min-width: 62px; text-align: right; letter-spacing: 0.04em; }
+.round-bar { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; margin: 0 0 2px; }
+.round-bar-fill { height: 100%; background: var(--orange); border-radius: 1px; transition: width 0.25s ease; }
+.btn-new-round { width: 100%; margin-top: 10px; background: none; border: 1px dashed var(--border-strong); border-radius: 6px; color: var(--text-dim); font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px; cursor: pointer; transition: all 0.15s; }
+.btn-new-round:hover { color: var(--orange); border-color: var(--orange); }
+
+/* leaderboard */
+.section-head { font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin: 32px 0 10px; display: flex; align-items: center; gap: 10px; }
+.section-head::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+#leaderboard { display: flex; flex-direction: column; gap: 4px; }
+.lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.lb-row.lb-top { background: var(--orange-light); border-color: #f0c8a8; }
+.lb-rank { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--text-dim); width: 20px; text-align: center; line-height: 1; }
+.lb-top .lb-rank { color: var(--orange); }
+.lb-name { font-family: 'Instrument Serif', serif; font-size: 1rem; flex: 1; }
+.lb-right { text-align: right; }
+.lb-pct { font-family: 'Bebas Neue', sans-serif; font-size: 1.15rem; color: var(--text); line-height: 1; }
+.lb-top .lb-pct { color: var(--orange); }
+.lb-clays { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.06em; margin-top: 1px; }
+
+.footer { margin-top: 40px; display: flex; justify-content: center; }
+.btn-reset { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 20px; cursor: pointer; transition: all 0.15s; }
+.btn-reset:hover { color: var(--miss); border-color: var(--miss); }
+.empty { text-align: center; padding: 40px 0; color: var(--text-dim); font-size: 0.72rem; letter-spacing: 0.08em; }
+
+/* no speech support warning */
+#no-speech { display: none; background: #fdf8ec; border: 1px solid #e8d8a0; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 0.68rem; color: #7a6020; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <canvas id="splash-canvas"></canvas>
+  <div id="splash-flash"></div>
+  <div id="splash-ui">
+    <div id="splash-title">CLAY <span>COUNTER</span></div>
+    <div id="splash-sub">Trap Shooting Tracker</div>
+    <button id="splash-btn" onclick="enterApp()">Enter →</button>
+  </div>
+  <div id="splash-skip">Tap anywhere to skip</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <h1>CLAY <span>COUNTER</span></h1>
+      <p>Trap Shooting Tracker</p>
+    </div>
+    <div class="header-meta">
+      <strong id="hdr-date"></strong>
+      <span id="hdr-shooters">0 shooters</span>
+    </div>
+  </header>
+
+  <div id="no-speech">⚠ Voice recognition not supported in this browser. Use Chrome or Safari on iOS 15+.</div>
+
+  <div id="voice-banner" class="visible" style="display:none">
+    <div class="vb-dot"></div>
+    <span class="vb-text">Listening — say "Hit" or "Miss"</span>
+    <span class="vb-last" id="vb-last"></span>
+  </div>
+
+  <div class="setup-bar">
+    <input type="text" id="name-input" placeholder="Shooter name…" maxlength="22" autocomplete="off">
+    <div class="clays-input">
+      <label for="clays-num">Clays</label>
+      <input type="number" id="clays-num" min="1" max="200" value="25">
+    </div>
+    <button class="btn-add" onclick="addShooter()">Add</button>
+  </div>
+
+  <div id="shooters"></div>
+  <div class="section-head">Leaderboard</div>
+  <div id="leaderboard"></div>
+  <div class="footer">
+    <button class="btn-reset" onclick="resetSession()">↺ New Session</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────
+let state = { shooters: [], defaultClays: 25 };
+function load() {
+  try { state = JSON.parse(localStorage.getItem('cc_v2') || 'null') || { shooters: [], defaultClays: 25 }; }
+  catch { state = { shooters: [], defaultClays: 25 }; }
+}
+function save() { localStorage.setItem('cc_v2', JSON.stringify(state)); }
+function uid()  { return Math.random().toString(36).slice(2, 8); }
+function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function pct(h, t) { return t ? Math.round(h / t * 100) + '%' : '—'; }
+function stats(s) {
+  let hits = 0, total = 0;
+  s.rounds.forEach(r => { hits += r.hits; total += r.hits + r.misses; });
+  return { hits, total, misses: total - hits };
+}
+
+// ── VOICE ──────────────────────────────────────────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let activeShooterId = null;  // which shooter's mic is on
+let recognitionRunning = false;
+
+if (!SpeechRecognition) {
+  document.getElementById('no-speech').style.display = 'block';
+}
+
+function initRecognition() {
+  if (!SpeechRecognition) return null;
+  const r = new SpeechRecognition();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = 'en-US';
+  r.maxAlternatives = 3;
+
+  let lastProcessed = '';
+  let cooldown = false;
+
+  r.onresult = e => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const result = e.results[i];
+      const transcript = Array.from(result)
+        .map(a => a.transcript)
+        .join(' ')
+        .toLowerCase()
+        .trim();
+
+      // Use final results OR confident interim
+      if (!result.isFinal && result[0].confidence < 0.7) continue;
+      if (transcript === lastProcessed || cooldown) continue;
+
+      const isHit  = /\bhit\b/.test(transcript);
+      const isMiss = /\b(miss|missed)\b/.test(transcript);
+
+      if ((isHit || isMiss) && activeShooterId) {
+        lastProcessed = transcript;
+        cooldown = true;
+        setTimeout(() => { cooldown = false; lastProcessed = ''; }, 1200);
+
+        const word = isHit ? 'hit' : 'miss';
+        updateVoiceBanner(word);
+        if (isHit)  voiceHit(activeShooterId);
+        if (isMiss) voiceMiss(activeShooterId);
+      }
+    }
+  };
+
+  r.onerror = e => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    console.warn('Speech error:', e.error);
+    if (e.error === 'not-allowed') {
+      stopListening();
+      alert('Microphone access denied. Please allow mic access in your browser settings.');
+    }
+  };
+
+  r.onend = () => {
+    // Auto-restart if we're supposed to still be listening
+    if (recognitionRunning && activeShooterId) {
+      try { r.start(); } catch(e) {}
+    }
+  };
+
+  return r;
+}
+
+function startListening(shooterId) {
+  if (!SpeechRecognition) return;
+
+  // Stop any current listener
+  if (activeShooterId && activeShooterId !== shooterId) stopListening();
+
+  activeShooterId = shooterId;
+  recognitionRunning = true;
+
+  if (!recognition) recognition = initRecognition();
+  try { recognition.start(); } catch(e) {}
+
+  // Update mic button states
+  document.querySelectorAll('.btn-mic').forEach(b => {
+    b.classList.toggle('listening', b.dataset.id === shooterId);
+  });
+  document.getElementById('voice-banner').style.display = 'flex';
+  document.getElementById('vb-last').textContent = '';
+}
+
+function stopListening() {
+  activeShooterId = null;
+  recognitionRunning = false;
+  try { recognition && recognition.stop(); } catch(e) {}
+  document.querySelectorAll('.btn-mic').forEach(b => b.classList.remove('listening'));
+  document.getElementById('voice-banner').style.display = 'none';
+}
+
+function toggleMic(shooterId) {
+  if (activeShooterId === shooterId) {
+    stopListening();
+  } else {
+    startListening(shooterId);
+  }
+}
+
+function updateVoiceBanner(word) {
+  const el = document.getElementById('vb-last');
+  el.textContent = 'Heard: ' + word;
+  el.style.color = word === 'hit' ? 'var(--hit)' : 'var(--miss)';
+  setTimeout(() => { el.textContent = ''; }, 2000);
+}
+
+// ── VOICE ACTIONS ─────────────────────────────────────────────────
+function voiceHit(shooterId) {
+  const s = state.shooters.find(s => s.id === shooterId);
+  if (!s) return;
+  const r = s.rounds[s.rounds.length - 1]; // always hits current (last) round
+  if (r.hits + r.misses >= r.max) return;
+  r.hits++;
+  save();
+  renderCard(s);
+  renderLeaderboard();
+  updateHeader();
+  flashButton(shooterId, 'hit');
+}
+
+function voiceMiss(shooterId) {
+  const s = state.shooters.find(s => s.id === shooterId);
+  if (!s) return;
+  const r = s.rounds[s.rounds.length - 1];
+  if (r.hits + r.misses >= r.max) return;
+  r.misses++;
+  save();
+  renderCard(s);
+  renderLeaderboard();
+  updateHeader();
+  flashButton(shooterId, 'miss');
+}
+
+function flashButton(shooterId, type) {
+  const card = document.getElementById('card-' + shooterId);
+  if (!card) return;
+  const rounds = card.querySelectorAll('.round');
+  const lastRound = rounds[rounds.length - 1];
+  if (!lastRound) return;
+  const cls = type === 'hit' ? 'btn-hit' : 'btn-miss';
+  const flashCls = type === 'hit' ? 'flash-hit' : 'flash-miss';
+  const btn = lastRound.querySelector('.' + cls);
+  if (!btn) return;
+  btn.classList.add(flashCls);
+  setTimeout(() => btn.classList.remove(flashCls), 250);
+}
+
+// ── SHOOTER CRUD ──────────────────────────────────────────────────
+function addShooter() {
+  const name = document.getElementById('name-input').value.trim();
+  const clays = parseInt(document.getElementById('clays-num').value) || 25;
+  if (!name) return;
+  state.shooters.push({ id: uid(), name, rounds: [{ hits: 0, misses: 0, max: clays }] });
+  state.defaultClays = clays;
+  document.getElementById('name-input').value = '';
+  save(); render();
+}
+
+function removeShooter(id) {
+  if (!confirm('Remove shooter?')) return;
+  if (activeShooterId === id) stopListening();
+  state.shooters = state.shooters.filter(s => s.id !== id);
+  save(); render();
+}
+
+function hit(id, ri) {
+  const s = state.shooters.find(s => s.id === id);
+  if (!s) return;
+  const r = s.rounds[ri];
+  if (r.hits + r.misses >= r.max) return;
+  r.hits++;
+  save(); renderCard(s); renderLeaderboard(); updateHeader();
+}
+
+function miss(id, ri) {
+  const s = state.shooters.find(s => s.id === id);
+  if (!s) return;
+  const r = s.rounds[ri];
+  if (r.hits + r.misses >= r.max) return;
+  r.misses++;
+  save(); renderCard(s); renderLeaderboard(); updateHeader();
+}
+
+function addRound(id) {
+  const s = state.shooters.find(s => s.id === id);
+  if (!s) return;
+  const clays = parseInt(document.getElementById('clays-num').value) || state.defaultClays || 25;
+  s.rounds.push({ hits: 0, misses: 0, max: clays });
+  save(); renderCard(s);
+}
+
+function resetSession() {
+  if (!confirm('Start a new session? All data will be cleared.')) return;
+  stopListening();
+  state = { shooters: [], defaultClays: state.defaultClays };
+  save(); render();
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────
+function roundsHTML(s) {
+  let h = '';
+  s.rounds.forEach((r, i) => {
+    const used = r.hits + r.misses;
+    const fill = r.max ? Math.round(used / r.max * 100) : 0;
+    const left = r.max - used;
+    h += `
+      <div class="round-bar"><div class="round-bar-fill" style="width:${fill}%"></div></div>
+      <div class="round">
+        <span class="round-label">Rnd ${i+1}</span>
+        <div class="tally">
+          <button class="btn-hit"  onclick="hit('${s.id}',${i})">✓ Hit</button>
+          <button class="btn-miss" onclick="miss('${s.id}',${i})">✗ Miss</button>
+        </div>
+        <span class="round-score">${r.hits}/${r.max} · ${left} left</span>
+      </div>`;
+  });
+  h += `<button class="btn-new-round" onclick="addRound('${s.id}')">+ New Round</button>`;
+  return h;
+}
+
+function renderCard(s) {
+  const el = document.getElementById('card-' + s.id);
+  if (!el) { render(); return; }
+  const { hits, total, misses } = stats(s);
+  el.querySelector('.tot-hit').textContent  = hits + ' hit';
+  el.querySelector('.tot-miss').textContent = misses + ' miss';
+  el.querySelector('.tot-pct').textContent  = pct(hits, total);
+  el.querySelector('.card-body').innerHTML  = roundsHTML(s);
+  // restore mic button state
+  const micBtn = el.querySelector('.btn-mic');
+  if (micBtn && activeShooterId === s.id) micBtn.classList.add('listening');
+}
+
+function renderShooters() {
+  const el = document.getElementById('shooters');
+  if (!state.shooters.length) {
+    el.innerHTML = '<div class="empty">Add a shooter to get started</div>';
+    return;
+  }
+  const speechAvail = !!SpeechRecognition;
+  el.innerHTML = state.shooters.map(s => {
+    const { hits, total, misses } = stats(s);
+    const isListening = activeShooterId === s.id;
+    const micBtn = speechAvail
+      ? `<button class="btn-mic ${isListening ? 'listening' : ''}" data-id="${s.id}" onclick="toggleMic('${s.id}')" title="Voice recognition">🎙</button>`
+      : '';
+    return `
+      <div class="shooter-card" id="card-${s.id}">
+        <div class="card-top">
+          <span class="shooter-name">${esc(s.name)}</span>
+          <div class="totals">
+            <span class="tot tot-hit">${hits} hit</span>
+            <span class="tot tot-miss">${misses} miss</span>
+            <span class="tot tot-pct">${pct(hits, total)}</span>
+          </div>
+          ${micBtn}
+          <button class="btn-del" onclick="removeShooter('${s.id}')">✕</button>
+        </div>
+        <div class="card-body">${roundsHTML(s)}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderLeaderboard() {
+  const el = document.getElementById('leaderboard');
+  if (!state.shooters.length) { el.innerHTML = '<div class="empty">No shooters yet</div>'; return; }
+  const ranked = state.shooters
+    .map(s => ({ ...s, ...stats(s) }))
+    .sort((a, b) => {
+      const pa = a.total ? a.hits / a.total : -1;
+      const pb = b.total ? b.hits / b.total : -1;
+      return pb - pa || b.hits - a.hits;
+    });
+  el.innerHTML = ranked.map((s, i) => `
+    <div class="lb-row ${i === 0 && s.total > 0 ? 'lb-top' : ''}">
+      <span class="lb-rank">${i+1}</span>
+      <span class="lb-name">${esc(s.name)}</span>
+      <div class="lb-right">
+        <div class="lb-pct">${pct(s.hits, s.total)}</div>
+        <div class="lb-clays">${s.hits}/${s.total} clays</div>
+      </div>
+    </div>`).join('');
+}
+
+function updateHeader() {
+  document.getElementById('hdr-shooters').textContent =
+    state.shooters.length + (state.shooters.length === 1 ? ' shooter' : ' shooters');
+}
+
+function render() { renderShooters(); renderLeaderboard(); updateHeader(); }
+
+document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') addShooter(); });
+document.getElementById('hdr-date').textContent =
+  new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+// ── ENTER APP ─────────────────────────────────────────────────────
+function enterApp() {
+  const sp = document.getElementById('splash');
+  sp.style.transition = 'opacity 0.4s ease';
+  sp.style.opacity = '0';
+  setTimeout(() => {
+    sp.style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    load(); render();
+  }, 420);
+}
+window.enterApp = enterApp;
+
+// ── SPLASH ANIMATION ──────────────────────────────────────────────
+(function() {
+  const cvs     = document.getElementById('splash-canvas');
+  const ctx     = cvs.getContext('2d');
+  const ui      = document.getElementById('splash-ui');
+  const btn     = document.getElementById('splash-btn');
+  const skipEl  = document.getElementById('splash-skip');
+  const flashEl = document.getElementById('splash-flash');
+
+  let done = false, exploded = false;
+  const tids = [], rids = [];
+  const sto = (fn, ms) => { const id = setTimeout(fn, ms); tids.push(id); return id; };
+  const rAF = fn  => { const id = requestAnimationFrame(fn); rids.push(id); return id; };
+
+  function resize() { cvs.width = cvs.offsetWidth; cvs.height = cvs.offsetHeight; }
+  resize();
+
+  const lerp    = (a, b, t) => a + (b - a) * t;
+  const easeOut = t => 1 - Math.pow(1 - t, 5);
+  const clamp   = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  let clayX, clayY, clayAngle = -0.4, clayOp = 0, arcT = 0;
+  let shards = [], dust = [], rings = [];
+  let shakeN = 0, lastT = null;
+
+  function initClay() { clayX = cvs.width * 0.05; clayY = cvs.height * 0.88; }
+
+  function drawClay(x, y, angle, op) {
+    if (op <= 0) return;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = op;
+    ctx.beginPath(); ctx.ellipse(1, 2, 22, 9, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 22, 9, 0, 0, Math.PI*2);
+    const g = ctx.createRadialGradient(-6, -4, 1, 0, 0, 22);
+    g.addColorStop(0,'#ff9944'); g.addColorStop(0.5,'#d95f1a'); g.addColorStop(1,'#8b3a0a');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -2, 14, 5, 0, 0, Math.PI);
+    ctx.strokeStyle = 'rgba(255,210,150,0.2)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+  }
+
+  function spawnShards(cx, cy) {
+    shards = [];
+    const cols = ['#d95f1a','#f09040','#b84a10','#ff8030'];
+    for (let i = 0; i < 18; i++) {
+      const a = (i/18)*Math.PI*2 + (Math.random()-0.5)*0.5;
+      const spd = 140 + Math.random()*200;
+      const sz = 4 + Math.random()*12;
+      const pts = 3 + Math.floor(Math.random()*3);
+      const verts = Array.from({length:pts}, (_,p) => {
+        const pa = (p/pts)*Math.PI*2 + Math.random()*1.2;
+        const r = sz*(0.4+Math.random()*0.6);
+        return [Math.cos(pa)*r, Math.sin(pa)*r];
+      });
+      shards.push({ x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-50,
+        spin:(Math.random()-0.5)*14, angle:Math.random()*Math.PI*2,
+        color:cols[i%cols.length], verts, op:1, life:0 });
+    }
+  }
+
+  function spawnDust(cx, cy) {
+    dust = [];
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random()*Math.PI*2, spd = 15+Math.random()*90;
+      dust.push({ x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-20,
+        sz:1.5+Math.random()*5, op:0.5+Math.random()*0.4, life:0, max:0.6+Math.random()*0.5 });
+    }
+  }
+
+  function spawnRings(cx, cy) {
+    rings = [0,0.07,0.14].map((delay,i) => ({ x:cx, y:cy, r:0, maxR:80+i*55, life:0, delay }));
+  }
+
+  function doFlash() {
+    flashEl.style.transition = 'none'; flashEl.style.opacity = '1';
+    sto(() => { flashEl.style.transition = 'opacity 0.25s ease'; flashEl.style.opacity = '0'; }, 50);
+  }
+
+  function showUI() {
+    ui.style.transition = 'opacity 0.55s ease'; ui.style.opacity = '1';
+    sto(() => {
+      btn.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      btn.style.opacity = '1'; btn.style.transform = 'translateY(0)'; btn.style.pointerEvents = 'all';
+    }, 300);
+    skipEl.style.opacity = '0';
+  }
+
+  function explode(cx, cy) {
+    exploded = true; doFlash();
+    shakeN = 14;
+    spawnShards(cx, cy); spawnDust(cx, cy); spawnRings(cx, cy);
+    sto(showUI, 400);
+  }
+
+  function loop(ts) {
+    const dt = lastT ? Math.min((ts-lastT)/1000, 0.05) : 0.016;
+    lastT = ts;
+    const W = cvs.width, H = cvs.height, MX = W*0.5, MY = H*0.5;
+    let sx = 0, sy = 0;
+    if (shakeN > 0) { const d=shakeN/14; sx=(Math.random()-0.5)*6*d; sy=(Math.random()-0.5)*6*d; shakeN--; }
+    ctx.setTransform(1,0,0,1,sx,sy);
+    ctx.clearRect(-10,-10,W+20,H+20);
+
+    if (!exploded) {
+      arcT += dt / 1.1;
+      clayOp = Math.min(arcT*5, 1);
+      const t = arcT;
+      const sx0=W*0.05,sy0=H*0.88,cx0=W*0.2,cy0=H*0.04;
+      const bt = easeOut(Math.min(t,1));
+      clayX = lerp(lerp(sx0,cx0,bt),lerp(cx0,MX,bt),bt);
+      clayY = lerp(lerp(sy0,cy0,bt),lerp(cy0,MY,bt),bt);
+      clayAngle += (6+Math.max(0,1-t*3)*4)*dt;
+      drawClay(clayX, clayY, clayAngle, clayOp);
+      if (arcT >= 1) explode(MX, MY);
+    } else {
+      shards.forEach(s => {
+        s.life+=dt; s.x+=s.vx*dt; s.y+=s.vy*dt; s.vy+=380*dt; s.vx*=0.996; s.angle+=s.spin*dt;
+        s.op = clamp(1-s.life*1.2,0,1);
+        if (s.op<=0) return;
+        ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.angle); ctx.globalAlpha=s.op;
+        ctx.beginPath(); s.verts.forEach(([vx,vy],i)=>i?ctx.lineTo(vx,vy):ctx.moveTo(vx,vy));
+        ctx.closePath(); ctx.fillStyle=s.color; ctx.fill(); ctx.restore();
+      });
+      dust.forEach(d => {
+        d.life+=dt; d.x+=d.vx*dt; d.y+=d.vy*dt; d.vy+=50*dt; d.vx*=0.97;
+        const p=d.life/d.max; d.op=clamp((1-p)*0.55,0,0.55);
+        if (d.op<=0) return;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.sz*(1+p*1.5),0,Math.PI*2);
+        ctx.fillStyle=`rgba(200,90,30,${d.op})`; ctx.fill();
+      });
+      rings.forEach(r => {
+        if (r.life<r.delay){r.life+=dt;return;}
+        r.r+=(r.maxR-r.r)*dt*8; r.life+=dt;
+        const p=r.r/r.maxR, op=clamp((1-p)*0.45,0,0.45);
+        if (op<=0) return;
+        ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(217,95,26,${op})`; ctx.lineWidth=2*(1-p); ctx.stroke();
+      });
+    }
+    ctx.setTransform(1,0,0,1,0,0);
+    rAF(loop);
+  }
+
+  function skipSplash() {
+    if (done) return;
+    tids.forEach(clearTimeout); rids.forEach(cancelAnimationFrame);
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    flashEl.style.opacity='0';
+    ui.style.transition='none'; ui.style.opacity='1';
+    btn.style.transition='none'; btn.style.opacity='1';
+    btn.style.transform='translateY(0)'; btn.style.pointerEvents='all';
+    skipEl.style.opacity='0';
+  }
+
+  document.getElementById('splash').addEventListener('click', e => { if (e.target!==btn) skipSplash(); });
+  sto(() => { initClay(); rAF(loop); }, 500);
+})();
+</script>
+</body>
+</html>
